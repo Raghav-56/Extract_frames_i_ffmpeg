@@ -5,9 +5,9 @@ Default configuration values for the video frame extraction tool.
 from pathlib import Path
 
 # Paths
-DEFAULT_INPUT_ROOT = Path("D:/Programming/DIC/Extract_frames_i_ffmpeg/videos")
+DEFAULT_INPUT_ROOT = Path("D:\Programming\DIC\Samvedna_Sample\Sample_vid")
 DEFAULT_OUTPUT_ROOT = Path(
-    "D:/Programming/DIC/Extract_frames_i_ffmpeg/extracted_frames"
+    "D:\Programming\DIC\Samvedna_Sample\Sample_vid\extracted_frames"
 )
 DEFAULT_FFMPEG_PATH = Path("ffmpeg")
 DEFAULT_LOG_FILE = Path("extraction_log.csv")
