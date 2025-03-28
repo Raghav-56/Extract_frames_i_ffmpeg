@@ -60,8 +60,8 @@ python main.py --input_root /path/to/videos --output_root /path/to/output --qual
 
 | Option | Description | Default |
 |--------|-------------|---------|
-| `input_root` | Directory containing input videos | `D:/Programming/DIC/Extract_frames_i_ffmpeg/videos` |
-| `output_root` | Directory for extracted frames | `D:/Programming/DIC/Extract_frames_i_ffmpeg/extracted_frames` |
+| `input_root` | Directory containing input videos | `D:\Programming\DIC\Samvedna_Sample\Sample_vid` |
+| `output_root` | Directory for extracted frames | `D:\Programming\DIC\Samvedna_Sample\Sample_vid\extracted_frames` |
 | `ffmpeg_path` | Path to FFmpeg executable | `ffmpeg` |
 | `threads` | Number of threads for FFmpeg | `4` |
 | `frame_pattern` | Pattern for output frame filenames | `frame_%04d.png` |
@@ -86,7 +86,7 @@ Example: `A1_EN_H_S5.mp4` (Speaker One, English, Happy, Sentence 5)
 
 - **Speaker**: Identifies the person speaking (A1-A25)
 - **Language**: Language code (EN for English, HI for Hindi)
-- **Emotion**: Emotion code (H for Happy, S for Sad, etc.)
+- **Emotion**: Emotion code (A for Anger, D for Disgust, F for Fear, H/Ha for Happy, N for Neutral, S for Sad)
 - **Sentence**: Sentence code (S1-S18)
 
 ## Directory Structure
@@ -115,4 +115,4 @@ The tool generates:
 
 ## License
 
-[Specify the license here]
+MIT License or specify your preferred license
