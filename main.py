@@ -62,7 +62,7 @@ class FrameExtractor:
             ]
         )
         self.metadata_df = pd.DataFrame()
-        logger.info(f"Initialized FrameExtractor with config: {self.cfg}")
+        logger.info("Initialized FrameExtractor with config: %s", self.cfg)
 
     def create_output_structure(self, video_path: Path) -> Path:
         if self.cfg.maintain_structure:
@@ -72,10 +72,19 @@ class FrameExtractor:
             output_dir = self.cfg.output_root / video_path.stem
 
         output_dir.mkdir(parents=True, exist_ok=True)
-        logger.debug(f"Created output directory: {output_dir}")
+        logger.debug("Created output directory: %s", output_dir)
         return output_dir
 
     def build_ffmpeg_command(self, input_path: Path, output_dir: Path) -> List[str]:
+        if "%d" not in self.cfg.frame_pattern and "%0" not in self.cfg.frame_pattern:
+            frame_pattern = f"frame_%03d.{self.cfg.output_format}"
+            logger.warning(
+                "Frame pattern doesn't include frame number format. Using %s instead.",
+                frame_pattern,
+            )
+        else:
+            frame_pattern = self.cfg.frame_pattern
+
         cmd = [
             str(self.cfg.ffmpeg_path),
             "-i",
@@ -90,22 +99,23 @@ class FrameExtractor:
             str(self.cfg.quality),
             "-f",
             "image2",
-            "-frame_pts",
-            "1",
-            str(output_dir / self.cfg.frame_pattern),
+            str(output_dir / frame_pattern),
         ]
 
         if self.cfg.overwrite:
             cmd.insert(1, "-y")
 
-        logger.debug(f"FFmpeg command: {' '.join(cmd)}")
+        logger.debug("FFmpeg command: %s", " ".join(cmd))
         return cmd
 
     def process_video(self, video_path: Path):
         try:
             metadata = parse_video_filename(video_path.name)
             logger.info(
-                f"Processing video: {video_path.name} ({metadata['emotion_full']} in {metadata['language_full']})"
+                "Processing video: %s (%s in %s)",
+                video_path.name,
+                metadata["emotion_full"],
+                metadata["language_full"],
             )
 
             output_dir = self.create_output_structure(video_path)
@@ -114,7 +124,7 @@ class FrameExtractor:
             result = subprocess.run(cmd, capture_output=True, text=True, check=True)
 
             frame_count = len(list(output_dir.glob(f"*.{self.cfg.output_format}")))
-            logger.info(f"Extracted {frame_count} I-frames from {video_path.name}")
+            logger.info("Extracted %d I-frames from %s", frame_count, video_path.name)
 
             self._update_log(
                 video_path, frame_count, output_dir, "success", metadata=metadata
@@ -123,10 +133,10 @@ class FrameExtractor:
 
         except subprocess.CalledProcessError as e:
             error_msg = e.stderr if e.stderr else str(e)
-            logger.error(f"FFmpeg error processing {video_path}: {error_msg}")
+            logger.error("FFmpeg error processing %s: %s", video_path, error_msg)
             self._update_log(video_path, 0, None, "failed", error_msg)
         except Exception as e:
-            logger.error(f"Failed processing {video_path}: {str(e)}", exc_info=True)
+            logger.error("Failed processing %s: %s", video_path, str(e), exc_info=True)
             self._update_log(video_path, 0, None, "failed", str(e))
 
     def _update_log(
@@ -155,7 +165,7 @@ class FrameExtractor:
         )
 
     def process_directory(self):
-        logger.info(f"Searching for videos in {self.cfg.input_root}")
+        logger.info("Searching for videos in %s", self.cfg.input_root)
         video_files = [
             p
             for p in self.cfg.input_root.rglob("*")
@@ -163,22 +173,22 @@ class FrameExtractor:
         ]
 
         if not video_files:
-            logger.warning(f"No video files found in {self.cfg.input_root}")
+            logger.warning("No video files found in %s", self.cfg.input_root)
             return
 
-        logger.info(f"Found {len(video_files)} videos to process")
+        logger.info("Found %d videos to process", len(video_files))
 
         for idx, video_path in enumerate(video_files, 1):
-            logger.info(f"Processing {idx}/{len(video_files)}: {video_path.name}")
+            logger.info("Processing %d/%d: %s", idx, len(video_files), video_path.name)
             self.process_video(video_path)
 
         if self.cfg.log_file:
             self.log_df.to_csv(self.cfg.log_file, index=False)
-            logger.info(f"Saved extraction log to {self.cfg.log_file}")
+            logger.info("Saved extraction log to %s", self.cfg.log_file)
 
         if self.cfg.metadata_csv and not self.metadata_df.empty:
             self.metadata_df.to_csv(self.cfg.metadata_csv, index=False)
-            logger.info(f"Saved video metadata to {self.cfg.metadata_csv}")
+            logger.info("Saved video metadata to %s", self.cfg.metadata_csv)
 
 
 def main():
