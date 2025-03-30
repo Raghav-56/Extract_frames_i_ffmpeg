@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Keyframe Extractor</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .upload-container {
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            background-color: #f8f9fa;
+        }
+        .upload-area {
+            border: 2px dashed #ccc;
+            padding: 30px;
+            text-align: center;
+            margin: 20px 0;
+            border-radius: 5px;
+            cursor: pointer;
+            background-color: #fff;
+        }
+        .upload-area:hover {
+            border-color: #0d6efd;
+        }
+        .file-input {
+            display: none;
+        }
+        .instructions {
+            margin-top: 20px;
+            font-size: 14px;
+            color: #6c757d;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="upload-container">
+            <h1 class="text-center mb-4">Keyframe Extractor</h1>
+            
+            {% with messages = get_flashed_messages() %}
+                {% if messages %}
+                    {% for message in messages %}
+                        <div class="alert alert-warning">{{ message }}</div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+            
+            <div class="text-center mb-3">
+                <a href="{{ url_for('ffmpeg_status') }}" class="text-decoration-none">
+                    <small>Check FFmpeg Status</small>
+                </a>
+            </div>
+            
+            <form action="{{ url_for('upload_file') }}" method="post" enctype="multipart/form-data">
+                <div class="upload-area" id="upload-area">
+                    <i class="bi bi-cloud-upload" style="font-size: 48px;"></i>
+                    <h4>Drag and drop your video here</h4>
+                    <p>or</p>
+                    <button type="button" class="btn btn-primary" id="select-file-btn">Select Video File</button>
+                    <input type="file" name="file" id="file-input" class="file-input" accept=".mp4,.avi,.mov,.mkv">
+                    <p class="mt-2" id="file-name"></p>
+                </div>
+                
+                <button type="submit" class="btn btn-success w-100">Extract Keyframes</button>
+            </form>
+            
+            <div class="instructions">
+                <h5>Instructions:</h5>
+                <ul>
+                    <li>Upload a video file (MP4, AVI, MOV, or MKV).</li>
+                    <li>The system will extract I-frames (keyframes) from your video.</li>
+                    <li>Maximum file size: 500MB</li>
+                    <li>Processing may take a few minutes depending on the video size.</li>
+                    <li><span class="text-danger">Important:</span> This application requires FFmpeg to be installed on the server.</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Add error handling for the document ready event
+        document.addEventListener('DOMContentLoaded', function() {
+            try {
+                document.getElementById('select-file-btn').addEventListener('click', function() {
+                    document.getElementById('file-input').click();
+                });
+                
+                document.getElementById('upload-area').addEventListener('click', function() {
+                    document.getElementById('file-input').click();
+                });
+                
+                document.getElementById('file-input').addEventListener('change', function() {
+                    const fileName = this.files[0] ? this.files[0].name : '';
+                    document.getElementById('file-name').textContent = fileName;
+                });
+                
+                // Drag and drop functionality
+                const uploadArea = document.getElementById('upload-area');
+                
+                uploadArea.addEventListener('dragover', function(e) {
+                    e.preventDefault();
+                    this.style.borderColor = '#0d6efd';
+                    this.style.backgroundColor = '#f0f8ff';
+                });
+                
+                uploadArea.addEventListener('dragleave', function() {
+                    this.style.borderColor = '#ccc';
+                    this.style.backgroundColor = '#fff';
+                });
+                
+                uploadArea.addEventListener('drop', function(e) {
+                    e.preventDefault();
+                    this.style.borderColor = '#ccc';
+                    this.style.backgroundColor = '#fff';
+                    
+                    const fileInput = document.getElementById('file-input');
+                    fileInput.files = e.dataTransfer.files;
+                    
+                    const fileName = fileInput.files[0] ? fileInput.files[0].name : '';
+                    document.getElementById('file-name').textContent = fileName;
+                });
+            } catch (error) {
+                console.error('Error initializing page:', error);
+                alert('There was an error initializing the page. Please refresh or contact support.');
+            }
+        });
+    </script>
+</body>
+</html>

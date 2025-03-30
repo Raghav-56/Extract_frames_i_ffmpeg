@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Set FFmpeg Path - Keyframe Extractor</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container mt-5">
+        <div class="row justify-content-center">
+            <div class="col-lg-8">
+                <div class="card shadow">
+                    <div class="card-header bg-primary text-white">
+                        <h3 class="mb-0">Set FFmpeg Path</h3>
+                    </div>
+                    <div class="card-body">
+                        <p class="mb-4">
+                            If the application cannot automatically find your FFmpeg installation,
+                            you can manually set the path to the FFmpeg executable here.
+                        </p>
+                        
+                        {% with messages = get_flashed_messages(with_categories=true) %}
+                            {% if messages %}
+                                {% for category, message in messages %}
+                                    <div class="alert alert-{{ category }}">{{ message }}</div>
+                                {% endfor %}
+                            {% endif %}
+                        {% endwith %}
+                        
+                        <form method="post" action="{{ url_for('set_ffmpeg_path') }}">
+                            <div class="mb-3">
+                                <label for="ffmpeg_path" class="form-label">Full path to ffmpeg.exe:</label>
+                                <input type="text" class="form-control" id="ffmpeg_path" name="ffmpeg_path" 
+                                       value="C:\Users\priya\Downloads\ffmpeg-master-latest-win64-gpl-shared\ffmpeg-master-latest-win64-gpl-shared\bin\ffmpeg.exe"
+                                       required>
+                                <div class="form-text">
+                                    Example: C:\ffmpeg\bin\ffmpeg.exe or C:\Users\priya\Downloads\ffmpeg-master-latest-win64-gpl-shared\ffmpeg-master-latest-win64-gpl-shared\bin\ffmpeg.exe
+                                </div>
+                            </div>
+                            
+                            <div class="d-grid gap-2">
+                                <button type="submit" class="btn btn-success">Save Path</button>
+                                <a href="{{ url_for('index') }}" class="btn btn-outline-secondary">Cancel</a>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

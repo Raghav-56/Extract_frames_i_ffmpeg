@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Extracted Keyframes</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .header {
+            background-color: #f8f9fa;
+            padding: 20px 0;
+            margin-bottom: 30px;
+            border-bottom: 1px solid #dee2e6;
+        }
+        .frame-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 50px;
+        }
+        .frame-card {
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            overflow: hidden;
+            transition: transform 0.2s;
+        }
+        .frame-card:hover {
+            transform: scale(1.03);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        .frame-img {
+            width: 100%;
+            height: 180px;
+            object-fit: cover;
+            cursor: pointer;
+        }
+        .frame-info {
+            padding: 10px;
+            background-color: #f8f9fa;
+            font-size: 0.9rem;
+            color: #6c757d;
+        }
+        .modal-img {
+            max-width: 100%;
+            max-height: 80vh;
+        }
+        .pagination-container {
+            margin: 30px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="container">
+            <div class="d-flex justify-content-between align-items-center">
+                <h1>Extracted Keyframes</h1>
+                <a href="{{ url_for('index') }}" class="btn btn-primary">Extract Another Video</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        {% with messages = get_flashed_messages() %}
+            {% if messages %}
+                {% for message in messages %}
+                    <div class="alert alert-warning">{{ message }}</div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <div class="alert alert-success">
+            Successfully extracted {{ frames|length }} keyframes from your video!
+        </div>
+
+        <div class="frame-grid" id="frameGrid">
+            {% for frame in frames %}
+            <div class="frame-card">
+                <img src="{{ url_for('serve_frame', session_id=session_id, filename=frame) }}" 
+                     class="frame-img" 
+                     data-bs-toggle="modal" 
+                     data-bs-target="#frameModal" 
+                     data-src="{{ url_for('serve_frame', session_id=session_id, filename=frame) }}">
+                <div class="frame-info">
+                    <div>{{ frame }}</div>
+                    <div>Frame #{{ loop.index }}</div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <!-- Frame Viewer Modal -->
+        <div class="modal fade" id="frameModal" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog modal-lg modal-dialog-centered">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="frameModalLabel">Keyframe</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body text-center">
+                        <img src="" id="modalImage" class="modal-img">
+                    </div>
+                    <div class="modal-footer">
+                        <a href="#" id="downloadLink" class="btn btn-primary" download>Download Frame</a>
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.querySelectorAll('.frame-img').forEach(img => {
+            img.addEventListener('click', function() {
+                const src = this.getAttribute('data-src');
+                document.getElementById('modalImage').src = src;
+                document.getElementById('downloadLink').href = src;
+            });
+        });
+    </script>
+</body>
+</html>
