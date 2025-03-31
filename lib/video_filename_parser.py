@@ -4,7 +4,7 @@ import os
 import shutil
 import argparse
 import logging
-from Extract_frames_i_ffmpeg.config.logger_config import logger
+from config.logger_config import logger
 
 EMOTION_DICT = {
     "A": "Anger",
