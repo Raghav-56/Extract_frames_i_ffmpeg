@@ -67,15 +67,27 @@ class FrameExtractor:
         logger.info("Initialized FrameExtractor with config: %s", self.cfg)
 
     def create_output_structure(self, video_path: Path) -> Path:
-        if self.cfg.maintain_structure:
-            relative_path = video_path.relative_to(self.cfg.input_root)
-            output_dir = self.cfg.output_root / relative_path.with_suffix("")
-        else:
-            output_dir = self.cfg.output_root / video_path.stem
+        try:
+            if self.cfg.maintain_structure and str(video_path).startswith(
+                str(self.cfg.input_root)
+            ):
+                # Only create relative path if the file is actually inside input_root
+                relative_path = video_path.relative_to(self.cfg.input_root)
+                output_dir = self.cfg.output_root / relative_path.with_suffix("")
+            else:
+                # For files outside input_root (like uploads), just use the filename
+                output_dir = self.cfg.output_root / video_path.stem
 
-        output_dir.mkdir(parents=True, exist_ok=True)
-        logger.debug("Created output directory: %s", output_dir)
-        return output_dir
+            output_dir.mkdir(parents=True, exist_ok=True)
+            logger.debug("Created output directory: %s", output_dir)
+            return output_dir
+        except Exception as e:
+            logger.warning(
+                f"Error creating output structure: {str(e)}. Defaulting to simple path."
+            )
+            output_dir = self.cfg.output_root / video_path.stem
+            output_dir.mkdir(parents=True, exist_ok=True)
+            return output_dir
 
     def build_ffmpeg_command(self, input_path: Path, output_dir: Path) -> List[str]:
         if "%d" not in self.cfg.frame_pattern and "%0" not in self.cfg.frame_pattern:
@@ -110,7 +122,7 @@ class FrameExtractor:
         logger.debug("FFmpeg command: %s", " ".join(cmd))
         return cmd
 
-    def process_video(self, video_path: Path):
+    def process_video(self, video_path: Path, progress_callback=None):
         try:
             metadata = parse_video_filename(video_path.name)
             logger.info(
@@ -120,13 +132,48 @@ class FrameExtractor:
                 metadata["language_full"],
             )
 
+            # Update progress if callback provided
+            if progress_callback:
+                progress_callback.update(10, 100)  # 10% - initialized processing
+
             output_dir = self.create_output_structure(video_path)
             cmd = self.build_ffmpeg_command(video_path, output_dir)
 
-            result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+            # Update progress if callback provided
+            if progress_callback:
+                progress_callback.update(20, 100)  # 20% - starting FFmpeg process
+
+            # Run FFmpeg with a pipe to get real-time output
+            process = subprocess.Popen(
+                cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                bufsize=1,
+                universal_newlines=True,
+            )
+
+            # Process FFmpeg output for progress updates
+            for line in process.stderr:
+                logger.debug(f"FFmpeg: {line.strip()}")
+                # Update progress based on FFmpeg output if needed
+                if progress_callback and "frame=" in line:
+                    # This is a simple estimation, more sophisticated progress tracking
+                    # would need to analyze the video first to determine total frames
+                    progress_callback.update(50, 100)  # 50% during processing
+
+            # Wait for the process to complete
+            process.wait()
+
+            if process.returncode != 0:
+                raise subprocess.CalledProcessError(process.returncode, cmd)
 
             frame_count = len(list(output_dir.glob(f"*.{self.cfg.output_format}")))
             logger.info("Extracted %d I-frames from %s", frame_count, video_path.name)
+
+            # Update progress if callback provided
+            if progress_callback:
+                progress_callback.update(100, 100)  # 100% - completed
 
             self._update_log(
                 video_path, frame_count, output_dir, "success", metadata=metadata
@@ -134,12 +181,14 @@ class FrameExtractor:
             self._update_metadata(video_path, metadata, frame_count)
 
         except subprocess.CalledProcessError as e:
-            error_msg = e.stderr if e.stderr else str(e)
+            error_msg = str(e)
             logger.error("FFmpeg error processing %s: %s", video_path, error_msg)
             self._update_log(video_path, 0, None, "failed", error_msg)
+            raise
         except Exception as e:
             logger.error("Failed processing %s: %s", video_path, str(e), exc_info=True)
             self._update_log(video_path, 0, None, "failed", str(e))
+            raise
 
     def _update_log(
         self, video_path, frame_count, output_dir, status, error=None, metadata=None
