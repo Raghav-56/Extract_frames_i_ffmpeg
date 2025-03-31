@@ -1,5 +1,7 @@
 # Extracting I keyframes from videos using FFmpeg
 
+__author__ = {"name": "Raghav Gupta", "username": "Raghav-56"}
+
 import subprocess
 import pandas as pd
 import pyrallis

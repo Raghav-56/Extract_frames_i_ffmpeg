@@ -1,3 +1,5 @@
+__author__ = {"name": "Raghav Gupta", "username": "Raghav-56"}
+
 import logging
 from logging.handlers import RotatingFileHandler, TimedRotatingFileHandler
 import os

@@ -1,8 +1,10 @@
+__author__ = {"name": "Raghav Gupta", "username": "Raghav-56"}
+
 import os
 import shutil
 import argparse
 import logging
-from config.logger_config import logger
+from Extract_frames_i_ffmpeg.config.logger_config import logger
 
 EMOTION_DICT = {
     "A": "Anger",
