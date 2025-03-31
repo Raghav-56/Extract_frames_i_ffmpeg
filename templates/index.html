@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FFmpeg Frame Extractor</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>FFmpeg I-Frame Extractor</h1>
+            <p>Extract key frames from video files using FFmpeg</p>
+        </header>
+
+        <div class="main-content">
+            <section class="config-section">
+                <h2>Configuration</h2>
+                <form id="extractForm">
+                    <div class="form-group">
+                        <label for="videoPath">Video Path:</label>
+                        <input type="text" id="videoPath" name="video_path" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="outputRoot">Output Directory:</label>
+                        <input type="text" id="outputRoot" name="output_root">
+                    </div>
+                    <div class="form-group">
+                        <label for="quality">Quality (1-31, lower is better):</label>
+                        <input type="number" id="quality" name="quality" min="1" max="31">
+                    </div>
+                    <div class="form-group">
+                        <label for="outputFormat">Output Format:</label>
+                        <select id="outputFormat" name="output_format">
+                            <option value="jpg">JPG</option>
+                            <option value="png">PNG</option>
+                            <option value="tiff">TIFF</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="btn primary">Extract Frames</button>
+                </form>
+            </section>
+
+            <section class="status-section" id="statusSection" style="display: none;">
+                <h2>Processing Status</h2>
+                <div class="status-container">
+                    <div id="statusIndicator" class="status-indicator processing">
+                        <span id="statusText">Processing...</span>
+                    </div>
+                    <div id="currentVideo" class="current-video"></div>
+                    <div id="statusMessage" class="status-message"></div>
+                </div>
+            </section>
+
+            <section class="frames-section">
+                <h2>Extracted Frames</h2>
+                <button id="refreshFrames" class="btn secondary">Refresh Frame List</button>
+                <div id="framesContainer" class="frames-container">
+                    <p>No frames extracted yet.</p>
+                </div>
+            </section>
+        </div>
+
+        <div id="framePreview" class="frame-preview">
+            <div class="preview-header">
+                <h3 id="previewTitle">Frame Preview</h3>
+                <button id="closePreview" class="btn close">×</button>
+            </div>
+            <div class="preview-content">
+                <img id="previewImage" src="" alt="Frame preview">
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html>
