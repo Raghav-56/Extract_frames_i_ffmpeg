@@ -56,6 +56,10 @@ processing_status = {
 def index():
     return render_template("index.html")
 
+@app.route("/results")
+def show_results():
+    """Show results page"""
+    return render_template("results.html")
 
 @app.route("/config", methods=["GET"])
 def get_config():
