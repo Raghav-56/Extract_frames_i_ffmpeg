@@ -6,6 +6,8 @@ logs/
 output/
 uploads/
 
+extracted_frames/
+
 *.mp4
 *.av1
 *.png
