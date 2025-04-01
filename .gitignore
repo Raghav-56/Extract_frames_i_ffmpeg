@@ -4,4 +4,12 @@ __pycache__/
 *$py.class
 logs/
 output/
+uploads/
+
 extracted_frames/
+
+*.mp4
+*.av1
+*.png
+*.jpg
+*.jpeg
