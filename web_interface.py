@@ -20,8 +20,7 @@ from flask import (
 )
 
 # Local application imports
-from main import Config, FrameExtractor, logger
-from lib.video_filename_parser import parse_video_filename
+from main import extract_frames_for_web, Config, logger
 
 app = Flask(__name__, static_folder="static")
 
@@ -31,16 +30,18 @@ UPLOAD_FOLDER.mkdir(exist_ok=True)
 app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
 app.config["MAX_CONTENT_LENGTH"] = 500 * 1024 * 1024  # 500MB max
 
-# Initialize with more general configuration
-config = Config()
+# Initialize with web-specific configuration
+OUTPUT_FOLDER = Path("extracted_frames")
+OUTPUT_FOLDER.mkdir(exist_ok=True, parents=True)
+config = Config(
+    input_path=UPLOAD_FOLDER,
+    output_root=OUTPUT_FOLDER,
+    web_mode=True,
+    overwrite=True,
+)
 
-# Set more appropriate default paths for web interface
-config.input_root = UPLOAD_FOLDER  # Set uploads as the input root
-config.output_root = Path("extracted_frames")  # Set a general output location
-config.output_root.mkdir(exist_ok=True, parents=True)
-
-extractor = FrameExtractor(config)
-
+# Use a lock to ensure thread-safe updates to the processing status
+status_lock = threading.Lock()
 processing_status = {
     "is_processing": False,
     "current_video": "",
@@ -49,6 +50,8 @@ processing_status = {
     "progress": 0,
     "start_time": None,
     "end_time": None,
+    "frames": [],
+    "output_dir": None,
 }
 
 
@@ -71,7 +74,7 @@ def get_config():
 
 
 class ProgressCallback:
-    """Progress callback for frame extraction"""
+    """Thread-safe progress callback for frame extraction"""
 
     def __init__(self):
         self.progress = 0
@@ -79,45 +82,66 @@ class ProgressCallback:
     def update(self, current, total):
         if total > 0:
             self.progress = int((current / total) * 100)
-        else:
-            self.progress = 0
+            # Update global status with thread safety
+            with status_lock:
+                processing_status["progress"] = self.progress
+                logger.debug(f"Progress updated: {self.progress}%")
 
 
-def background_process_videos(video_path):
-    """Background processor for videos"""
+def background_process_video(video_path):
+    """Background processor for videos with improved status handling"""
     global processing_status
     progress_callback = ProgressCallback()
 
     try:
-        processing_status["is_processing"] = True
-        processing_status["completed"] = False
-        processing_status["error"] = None
-        processing_status["progress"] = 0
-        processing_status["start_time"] = time.time()
+        with status_lock:
+            processing_status["is_processing"] = True
+            processing_status["completed"] = False
+            processing_status["error"] = None
+            processing_status["progress"] = 0
+            processing_status["start_time"] = time.time()
+            processing_status["current_video"] = Path(video_path).name
+            processing_status["frames"] = []
+            # Store the actual output directory path
+            output_dir = str(OUTPUT_FOLDER / Path(video_path).stem)
+            processing_status["output_dir"] = output_dir
 
         # Check if file exists
         if not Path(video_path).exists():
             raise FileNotFoundError(f"Video file not found: {video_path}")
 
-        # Extract metadata if possible
-        try:
-            video_name = Path(video_path).name
-            metadata = parse_video_filename(video_name)
-            processing_status["metadata"] = metadata
-        except Exception as e:
-            logger.warning(f"Could not parse video metadata: {str(e)}")
-            processing_status["metadata"] = None
+        # Process video using the enhanced function
+        frame_paths = extract_frames_for_web(
+            input_path=video_path,
+            output_dir=output_dir,
+            progress_callback=progress_callback,
+            quality=config.quality,
+            output_format=config.output_format,
+        )
 
-        # Process video
-        processing_status["current_video"] = Path(video_path).name
+        # Update status with results
+        with status_lock:
+            processing_status["progress"] = 100
+            processing_status["completed"] = True
+            processing_status["end_time"] = time.time()
 
-        # Hook up progress callback to extractor
-        extractor.process_video(Path(video_path), progress_callback)
+            # Fix: Ensure frame paths exist and are properly formatted
+            if frame_paths and isinstance(frame_paths, list):
+                processing_status["frames"] = frame_paths
+            else:
+                # If no frames were returned, check if they exist in the output directory
+                output_path = Path(output_dir)
+                if output_path.exists():
+                    frames = list(output_path.glob(f"*.{config.output_format}"))
+                    processing_status["frames"] = [
+                        str(f.relative_to(OUTPUT_FOLDER)) for f in frames
+                    ]
+                else:
+                    processing_status["frames"] = []
 
-        # Update progress from callback
-        processing_status["progress"] = 100
-        processing_status["completed"] = True
-        processing_status["end_time"] = time.time()
+            logger.info(
+                f"Processing completed. Found {len(processing_status['frames'])} frames."
+            )
 
         # Clean up uploaded file if it's in our upload folder
         if str(video_path).startswith(str(UPLOAD_FOLDER)):
@@ -125,22 +149,23 @@ def background_process_videos(video_path):
                 Path(video_path).unlink()
                 logger.info(f"Cleaned up uploaded file: {video_path}")
             except Exception as e:
-                logger.warning(
-                    f"Could not remove temporary file {video_path}: {str(e)}"
-                )
+                logger.warning(f"Could not remove temporary file {video_path}: {e}")
 
     except Exception as e:
-        processing_status["error"] = str(e)
-        logger.error(f"Error in background processing: {str(e)}")
+        with status_lock:
+            processing_status["error"] = str(e)
+        logger.error(f"Error in background processing: {e}")
     finally:
-        processing_status["is_processing"] = False
+        with status_lock:
+            processing_status["is_processing"] = False
 
 
 @app.route("/upload", methods=["POST"])
 def upload_video():
-    """Handle video file uploads"""
-    if processing_status["is_processing"]:
-        return jsonify({"error": "Processing is already in progress"}), 409
+    """Handle video file uploads with improved output handling"""
+    with status_lock:
+        if processing_status["is_processing"]:
+            return jsonify({"error": "Processing is already in progress"}), 409
 
     if "video" not in request.files:
         return jsonify({"error": "No video file provided"}), 400
@@ -152,25 +177,16 @@ def upload_video():
 
     # Save the uploaded file
     filename = Path(video_file.filename).name
-    file_path = app.config["UPLOAD_FOLDER"] / filename
+    file_path = UPLOAD_FOLDER / filename
     video_file.save(file_path)
 
-    # Update configuration from form data
-    output_root = request.form.get("output_root", str(config.output_root))
-    quality = int(request.form.get("quality", config.quality))
-    output_format = request.form.get("output_format", config.output_format)
-
-    # Update configuration
-    config.output_root = Path(output_root)
-    config.quality = quality
-    config.output_format = output_format
-
-    # Ensure input_root is set to the uploads folder for uploaded files
-    config.input_root = UPLOAD_FOLDER
+    # Define output directory based on video name
+    output_dir = OUTPUT_FOLDER / file_path.stem
+    output_dir.mkdir(parents=True, exist_ok=True)
 
     # Start processing in background
     processing_thread = threading.Thread(
-        target=background_process_videos, args=(file_path,)
+        target=background_process_video, args=(file_path,)
     )
     processing_thread.daemon = True
     processing_thread.start()
@@ -187,10 +203,11 @@ def upload_video():
 @app.route("/process", methods=["POST"])
 def process_videos():
     """Handle processing request for local video path"""
-    if processing_status["is_processing"]:
-        return jsonify({"error": "Processing is already in progress"}), 409
+    with status_lock:
+        if processing_status["is_processing"]:
+            return jsonify({"error": "Processing is already in progress"}), 409
 
-    # Get video path and configuration
+    # Get video path
     video_path = request.form.get("video_path")
     if not video_path:
         return jsonify({"error": "Video path is required"}), 400
@@ -199,18 +216,9 @@ def process_videos():
     if not Path(video_path).exists():
         return jsonify({"error": "Video file not found at specified path"}), 404
 
-    output_root = request.form.get("output_root", str(config.output_root))
-    quality = int(request.form.get("quality", config.quality))
-    output_format = request.form.get("output_format", config.output_format)
-
-    # Update configuration
-    config.output_root = Path(output_root)
-    config.quality = quality
-    config.output_format = output_format
-
     # Start processing in background
     processing_thread = threading.Thread(
-        target=background_process_videos, args=(video_path,)
+        target=background_process_video, args=(video_path,)
     )
     processing_thread.daemon = True
     processing_thread.start()
@@ -226,70 +234,47 @@ def process_videos():
 
 @app.route("/status", methods=["GET"])
 def get_status():
-    """Get the current processing status"""
-    # If processing is done and successful, include detailed frame info
-    if processing_status.get("completed", False) and not processing_status.get("error"):
-        video_name = processing_status.get("current_video")
-        if video_name:
-            # Find the frames for this video
-            video_output_dir = None
-            for video_dir in config.output_root.glob("**/"):
-                if video_dir.name == Path(video_name).stem:
-                    video_output_dir = video_dir
-                    break
+    """Get the current processing status with thread safety"""
+    with status_lock:
+        result = {**processing_status}
 
-            if video_output_dir:
-                frames = list(video_output_dir.glob(f"*.{config.output_format}"))
-                processing_status["frame_count"] = len(frames)
-                processing_status["output_dir"] = str(video_output_dir)
-                # Add frame paths for preview
-                if frames:
-                    processing_status["frames"] = [
-                        str(frame.relative_to(config.output_root)) for frame in frames
-                    ]
+        # Calculate elapsed time
+        if result.get("is_processing") and result.get("start_time"):
+            result["elapsed_seconds"] = int(time.time() - result["start_time"])
+        elif result.get("start_time") and result.get("end_time"):
+            result["elapsed_seconds"] = int(result["end_time"] - result["start_time"])
 
-    # Calculate elapsed time if processing
-    if processing_status.get("is_processing") and processing_status.get("start_time"):
-        processing_status["elapsed_seconds"] = int(
-            time.time() - processing_status["start_time"]
-        )
-    elif (
-        processing_status.get("completed")
-        and processing_status.get("start_time")
-        and processing_status.get("end_time")
-    ):
-        processing_status["elapsed_seconds"] = int(
-            processing_status["end_time"] - processing_status["start_time"]
-        )
-
-    return jsonify(processing_status)
+    return jsonify(result)
 
 
 @app.route("/frames", methods=["GET"])
 def list_frames():
-    """List all extracted frames"""
-    if not config.output_root.exists():
+    """List all extracted frames with improved directory handling"""
+    if not OUTPUT_FOLDER.exists():
         return jsonify({"error": "Output directory does not exist"}), 404
 
     video_path = request.args.get("video_path")
-
     result = []
-    for video_dir in config.output_root.glob("**/"):
-        if video_dir == config.output_root:
+
+    # Find all output directories
+    for video_dir in OUTPUT_FOLDER.glob("*"):
+        if not video_dir.is_dir():
             continue
 
-        # If specific video path requested, filter results
+        # Filter by video name if specified
         if video_path and video_dir.name != Path(video_path).stem:
             continue
 
         frames = list(video_dir.glob(f"*.{config.output_format}"))
+        frames.sort()  # Sort frames for consistent order
+
         if frames:
             result.append(
                 {
                     "video_name": video_dir.name,
-                    "path": str(video_dir.relative_to(config.output_root)),
+                    "path": str(video_dir.relative_to(OUTPUT_FOLDER)),
                     "frame_count": len(frames),
-                    "frames": [str(f.relative_to(config.output_root)) for f in frames],
+                    "frames": [str(f.relative_to(OUTPUT_FOLDER)) for f in frames],
                 }
             )
 
@@ -299,7 +284,7 @@ def list_frames():
 @app.route("/frames/<path:frame_path>")
 def serve_frame(frame_path):
     """Serve a specific frame"""
-    return send_from_directory(str(config.output_root), frame_path)
+    return send_from_directory(str(OUTPUT_FOLDER), frame_path)
 
 
 @app.route("/download_frames", methods=["GET"])
@@ -311,14 +296,9 @@ def download_frames():
 
     # Find the output directory for this video
     video_name = Path(video_path).stem
-    video_output_dir = None
+    video_output_dir = OUTPUT_FOLDER / video_name
 
-    for dir_path in config.output_root.glob("**/"):
-        if dir_path.name == video_name:
-            video_output_dir = dir_path
-            break
-
-    if not video_output_dir or not video_output_dir.exists():
+    if not video_output_dir.exists():
         return jsonify({"error": f"No frames found for {video_name}"}), 404
 
     # Create a temporary zip file
@@ -337,25 +317,10 @@ def download_frames():
     )
 
 
-@app.route("/create_default_folders", methods=["POST"])
-def create_default_folders():
-    """Create default folders if they don't exist"""
-    try:
-        # Create output folder if it doesn't exist
-        config.output_root.mkdir(exist_ok=True, parents=True)
-        return jsonify({"success": True, "output_folder": str(config.output_root)})
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-
 if __name__ == "__main__":
     # Create necessary folders
     static_folder = Path(app.root_path) / "static"
     static_folder.mkdir(exist_ok=True)
-    UPLOAD_FOLDER.mkdir(exist_ok=True)
-
-    # Create default output folder
-    config.output_root.mkdir(exist_ok=True, parents=True)
 
     port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port)
+    app.run(host="0.0.0.0", port=port, debug=True)
