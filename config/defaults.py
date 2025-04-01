@@ -13,7 +13,7 @@ DEFAULT_LOG_FILE = Path("extraction_log.csv")
 DEFAULT_METADATA_CSV = Path("video_metadata.csv")
 
 # Valid video file extensions
-VALID_EXTENSIONS = [".mp4", ".avi", ".mov", ".mkv"]  # Added more common formats
+VALID_EXTENSIONS = [".mp4", ".avi", ".mov", ".mkv"]
 
 # Frame extraction defaults
 DEFAULT_QUALITY = 1  # Highest quality (1-31 scale where lower is better)

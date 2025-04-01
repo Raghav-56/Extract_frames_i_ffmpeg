@@ -4,3 +4,10 @@ __pycache__/
 *$py.class
 logs/
 output/
+uploads/
+
+*.mp4
+*.av1
+*.png
+*.jpg
+*.jpeg
