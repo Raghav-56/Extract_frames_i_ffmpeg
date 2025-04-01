@@ -1,4 +1,29 @@
 
+        body {
+            margin: 0;
+            max-height: 100vh;
+            background: linear-gradient(-45deg, 
+                #c2ebff,
+                #95e1ff,
+                #8be8ff,
+                #5b94ff);
+            background-size: 400% 400%;
+            animation: gradient 7s ease-in-out infinite alternate;
+            position: relative;
+        }
+
+
+
+        @keyframes gradient {
+            0% { background-position: 0% 50%; }
+            25% { background-position: 50% 50%; }
+            50% { background-position: 100% 50%; }
+            75% { background-position: 50% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        
+/*----------------------------------------------------------------------------------------*/
 
 /* Style for the frame images */
 .frame-image {
