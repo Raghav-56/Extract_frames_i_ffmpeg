@@ -1,0 +1,94 @@
+
+
+/* Style for the frame images */
+.frame-image {
+    width: 100%;
+    height: 200px;
+    object-fit: cover;
+    border-radius: 8px;
+    margin-bottom: 10px;
+}
+
+/* Style for extracted frames */
+#framesList .card {
+    transition: all 0.3s ease;
+    border: 2px solid #e0e0e0;
+    overflow: hidden;
+}
+
+#framesList .card:hover {
+    border-color: #00ff11;
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+}
+
+#framesList .card img {
+    width: 100%;
+    height: 250px;
+    object-fit: cover;
+
+}
+
+/* Adding some hover effects */
+.card {
+    transition: box-shadow 0.3s;
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.card:hover {
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    border-radius: 12px;
+    overflow:hidden
+}
+
+/* Making buttons look better */
+.btn {
+    padding: 10px 20px;
+    font-size: 16px;
+}
+
+/* Adding some spacing */
+.mt-4 {
+    margin-top: 20px;
+}
+
+/*skeliton loading effect*/
+
+.skeleton {
+    animation: skeleton-loading 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    background: linear-gradient(
+        -90deg,
+        hsl(200, 20%, 90%) 0%,
+        hsl(200, 20%, 85%) 25%,
+        hsl(200, 20%, 80%) 50%,
+        hsl(200, 20%, 85%) 75%,
+        hsl(200, 20%, 90%) 100%
+    );
+    background-size: 200% 100%;
+}
+
+.skeleton-card {
+    height: 250px;
+    background-color: hsl(200, 20%, 90%);
+    overflow: hidden;
+    border-radius: 12px
+}
+
+/* Remove card borders in loading state */
+#loading-skeleton .card {
+    border: none;
+    box-shadow: none;
+    background: none;
+    border-radius: 12px; /* Added rounded corners */
+    overflow: hidden;
+}
+
+@keyframes skeleton-loading {
+    0% {
+        background-position: -200% 0;
+    }
+    100% {
+        background-position: 200% 0;
+    }
+}
