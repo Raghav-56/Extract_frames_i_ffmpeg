@@ -117,3 +117,26 @@
         background-position: 200% 0;
     }
 }
+
+/* .frame-card { */
+    /* position: relative;
+}
+
+.frame-card .card-img-overlay {
+    background: linear-gradient(to bottom, rgba(0,0,0,0.3), transparent);
+    transition: background 0.3s ease;
+}
+
+.frame-card .frame-selector {
+    transform: scale(1.2);
+    cursor: pointer;
+}
+
+.frame-card.selected {
+    border: 3px solid #198754;
+    transform: scale(1.02);
+}
+
+.frame-card.selected .card-img-overlay {
+    background: linear-gradient(to bottom, rgba(25,135,84,0.2), transparent);
+} */

@@ -8,6 +8,7 @@ import threading
 import time
 import zipfile
 from pathlib import Path
+import json
 
 # Third-party imports
 from flask import (
@@ -309,6 +310,34 @@ def serve_frame(frame_path):
 @app.route("/download_frames", methods=["GET"])
 def download_frames():
     """Download frames as a ZIP archive"""
+    # Check if we're downloading selected frames
+    selected_frames = request.args.get("frames")
+    if selected_frames:
+        try:
+            # //import json
+            selected_frames = json.loads(selected_frames)  # Parse JSON string
+            # Create a temporary zip file for selected frames
+            temp_dir = tempfile.mkdtemp()
+            zip_path = Path(temp_dir) / "selected_frames.zip"
+
+            with zipfile.ZipFile(zip_path, "w") as zipf:
+                for frame_path in selected_frames:
+                    full_path = config.output_root / frame_path
+                    if full_path.exists():
+                        zipf.write(full_path, arcname=full_path.name)
+
+            return send_file(
+                zip_path,
+                mimetype="application/zip",
+                as_attachment=True,
+                download_name="selected_frames.zip"
+            )
+        except Exception as e:
+            return jsonify({"error": f"Error processing selected frames: {str(e)}"}), 400
+        
+    # If no specific frames requested, download all frames for a video
+
+    # Original functionality for downloading all frames
     video_path = request.args.get("video_path")
     if not video_path:
         return jsonify({"error": "Video path parameter is required"}), 400
