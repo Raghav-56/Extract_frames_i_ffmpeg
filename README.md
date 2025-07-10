@@ -113,6 +113,69 @@ The tool generates:
 2. A log file with processing results
 3. A metadata CSV file with information about each video and extracted frames
 
+## Web Server API
+
+The project now includes a FastAPI web server that provides REST endpoints for video frame extraction:
+
+### Features
+- **File Upload**: Upload video files directly through the web interface
+- **Real-time Processing**: Extract I-frames from uploaded videos
+- **Multiple Response Formats**: 
+  - Base64 encoded images (embedded in response)
+  - Static URLs (frames saved on server)
+- **Background Processing**: Non-blocking extraction for large files
+- **CORS Support**: Cross-origin requests enabled
+
+### API Endpoints
+
+#### POST `/upload-extract`
+Upload a video file and get I-frames as base64 encoded images in the response.
+
+**Request**: Multipart form data with video file
+**Response**: JSON with embedded base64 image data
+
+#### POST `/upload-extract-urls`
+Upload a video file and get I-frames as static URLs that can be accessed later.
+
+**Request**: Multipart form data with video file
+**Response**: JSON with static URLs pointing to extracted frames
+
+#### POST `/extract`
+Extract frames from a video file path (original functionality).
+
+#### GET `/status`
+Check the status of background extraction tasks.
+
+#### GET `/health`
+Health check endpoint.
+
+### Starting the Web Server
+
+1. Install web dependencies:
+```bash
+pip install -r requirements.txt
+```
+
+2. Start the server:
+```bash
+python start_server.py
+```
+
+Or use uvicorn directly:
+```bash
+uvicorn server:app --host 0.0.0.0 --port 8000 --reload
+```
+
+3. Access the test interface at `http://localhost:8000`
+
+### Web Interface
+
+The server includes a built-in web interface for testing:
+- Drag and drop video files
+- Choose between base64 or URL response formats
+- View extracted frames in a grid layout
+- Download individual frames
+
 ## License
 
 MIT License or specify your preferred license

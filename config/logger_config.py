@@ -2,7 +2,6 @@ __author__ = {"name": "Raghav Gupta", "username": "Raghav-56"}
 
 import logging
 from logging.handlers import RotatingFileHandler, TimedRotatingFileHandler
-import os
 import time
 import sys
 from pathlib import Path
@@ -14,17 +13,6 @@ def setup_logger(
     file_level=logging.DEBUG,
     app_name="app",
 ):
-    """Configure and return a logger with multiple handlers.
-
-    Args:
-        log_dir: Directory for log files
-        console_level: Logging level for console output
-        file_level: Logging level for log files
-        app_name: Name for the logger
-
-    Returns:
-        Configured logger instance
-    """
     try:
         Path(log_dir).mkdir(exist_ok=True)
     except (FileNotFoundError, PermissionError, OSError) as e:
@@ -86,12 +74,4 @@ def setup_logger(
     return logger
 
 
-default_logger = setup_logger()
-
-# Export the default_logger as 'logger' for backward compatibility
-logger = default_logger
-
-# Example usage:
-# from config.logger_config import setup_logger
-# logger = setup_logger(app_name="my_module")
-# logger.info("Application started")
+logger = setup_logger()

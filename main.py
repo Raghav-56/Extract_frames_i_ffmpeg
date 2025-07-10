@@ -1,18 +1,11 @@
-# Extracting I keyframes from videos using FFmpeg
-
-__author__ = {"name": "Raghav Gupta", "username": "Raghav-56"}
-
-# Standard library imports
 import subprocess
 from pathlib import Path
 from dataclasses import dataclass, field
 from typing import List, Optional, Dict, Union
-
-# Third-party imports
+import os
 import pandas as pd
 import pyrallis
 
-# Local module imports
 from config.logger_config import setup_logger
 from config.defaults import (
     VALID_EXTENSIONS,
@@ -27,10 +20,10 @@ from config.defaults import (
     DEFAULT_MAINTAIN_STRUCTURE,
     DEFAULT_LOG_FILE,
     DEFAULT_METADATA_CSV,
+    STATIC_ROOT,
 )
 from lib.video_filename_parser import parse_video_filename
 
-# Configure logging
 logger = setup_logger(
     log_dir="logs",
     app_name="frame_extractor",
@@ -57,11 +50,21 @@ class Config:
     log_file: Optional[Path] = DEFAULT_LOG_FILE
     metadata_csv: Optional[Path] = DEFAULT_METADATA_CSV
 
+    def validate_paths(self):
+        if self.web_mode:
+            static_root = Path(STATIC_ROOT).resolve()
+            if self.output_root:
+                output_root_path = Path(self.output_root).resolve()
+                if not str(output_root_path).startswith(str(static_root)):
+                    raise ValueError(
+                        "output_root must be inside the static root directory."
+                    )
+
 
 class FrameExtractor:
-    """Extract I-frames from videos using FFmpeg."""
 
     def __init__(self, cfg: Config):
+        cfg.validate_paths()
         self.cfg = cfg
         self.log_df = pd.DataFrame(
             columns=[
@@ -292,39 +295,26 @@ class FrameExtractor:
             for p in self.cfg.input_path.rglob("*")
             if p.suffix.lower() in self.cfg.video_extensions
         ]
-
         if not video_files:
-            logger.warning(f"No video files found in {self.cfg.input_path}")
             return {} if self.cfg.web_mode else None
-
-        # For CLI mode, set output to input's parent directory
         if not self.cfg.web_mode and self.cfg.use_parent_dir:
             self.cfg.output_root = self.cfg.input_path
-            logger.info(
-                f"CLI mode: Using input directory as output: {self.cfg.output_root}"
-            )
-
-        logger.info(f"Found {len(video_files)} videos to process")
         all_frames = {} if self.cfg.web_mode else None
-
-        for idx, video_path in enumerate(video_files, 1):
-            logger.info(f"Processing {idx}/{len(video_files)}: {video_path.name}")
+        for video_path in video_files:
             result = self.process_video(video_path)
-
             if self.cfg.web_mode and result:
-                all_frames[str(video_path)] = result
-
+                all_frames[video_path.name] = result
         self._save_logs_and_metadata()
         return all_frames
 
     def _save_logs_and_metadata(self):
         if self.cfg.log_file:
             self.log_df.to_csv(self.cfg.log_file, index=False)
-            logger.info(f"Saved extraction log to {self.cfg.log_file}")
+            logger.info("Saved extraction log to %s", self.cfg.log_file)
 
         if self.cfg.metadata_csv and not self.metadata_df.empty:
             self.metadata_df.to_csv(self.cfg.metadata_csv, index=False)
-            logger.info(f"Saved video metadata to {self.cfg.metadata_csv}")
+            logger.info("Saved video metadata to %s", self.cfg.metadata_csv)
 
 
 def main():
@@ -340,30 +330,32 @@ def main():
 def extract_frames_for_web(
     input_path, output_dir=None, progress_callback=None, **kwargs
 ):
-    """Enhanced function for web interface to extract frames with progress tracking."""
     config_args = {
         "input_path": Path(input_path),
         "web_mode": True,
         "use_parent_dir": output_dir is None,
-        "overwrite": True,  # Default to overwrite in web mode
+        "overwrite": True,
     }
 
+    static_root = Path(STATIC_ROOT).resolve()
     if output_dir:
-        config_args["output_root"] = Path(output_dir)
-        # Ensure output directory exists
-        Path(output_dir).mkdir(parents=True, exist_ok=True)
+        output_dir_path = Path(output_dir).resolve()
+        if not str(output_dir_path).startswith(str(static_root)):
+            raise ValueError("output_dir must be inside the static root directory.")
+        config_args["output_root"] = output_dir_path
+        Path(output_dir_path).mkdir(parents=True, exist_ok=True)
+    else:
+        config_args["output_root"] = static_root
+        static_root.mkdir(parents=True, exist_ok=True)
 
-    # Update with any additional parameters
     config_args.update(kwargs)
     cfg = Config(**config_args)
 
     extractor = FrameExtractor(cfg)
 
     if Path(input_path).is_file():
-        # Direct processing of a single file
         return extractor.process_video(Path(input_path), progress_callback)
     else:
-        # Directory processing (less common in web mode)
         return extractor.process_input()
 
 
