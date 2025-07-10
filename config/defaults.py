@@ -1,7 +1,3 @@
-"""
-Default configuration values for the video frame extraction tool.
-"""
-
 from pathlib import Path
 
 # Paths
