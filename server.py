@@ -135,10 +135,10 @@ async def upload_and_extract(video: UploadFile = File(...)):
         return JSONResponse(
             {"error": "Invalid file type. Please upload a video file."}, status_code=400
         )
-    temp_dir = tempfile.mkdtemp()
-    temp_video_path = Path(temp_dir) / f"upload_{video.filename}"
-    temp_output_dir = Path(temp_dir) / "frames"
-    temp_output_dir.mkdir(exist_ok=True)
+    output_dir_name = f"upload_{Path(video.filename).stem}"
+    temp_output_dir = Path(STATIC_ROOT) / output_dir_name
+    temp_output_dir.mkdir(parents=True, exist_ok=True)
+    temp_video_path = temp_output_dir / f"upload_{video.filename}"
     with open(temp_video_path, "wb") as buffer:
         content = await video.read()
         buffer.write(content)
@@ -147,8 +147,13 @@ async def upload_and_extract(video: UploadFile = File(...)):
         output_dir=str(temp_output_dir),
         progress_callback=None,
     )
+    # Remove the uploaded video after extraction
+    try:
+        temp_video_path.unlink(missing_ok=True)
+    except Exception:
+        pass
     if not frames:
-        shutil.rmtree(temp_dir, ignore_errors=True)
+        shutil.rmtree(temp_output_dir, ignore_errors=True)
         return JSONResponse(
             {"error": "No I-frames found in the video."}, status_code=404
         )
@@ -171,7 +176,8 @@ async def upload_and_extract(video: UploadFile = File(...)):
                         "data": f"data:image/jpeg;base64,{img_base64}",
                     }
                 )
-    shutil.rmtree(temp_dir, ignore_errors=True)
+    # Optionally, clean up the frames after sending (uncomment if you want to auto-delete)
+    # shutil.rmtree(temp_output_dir, ignore_errors=True)
     return {
         "message": "Frames extracted successfully",
         "video_filename": video.filename,
