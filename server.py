@@ -97,14 +97,12 @@ async def extract(request: Request, background_tasks: BackgroundTasks):
                 if isinstance(frames, dict):
                     for video, frame_list in frames.items():
                         for f in frame_list:
-                            frame_urls.append(
-                                f"/frames-static/{f.replace('\\', '/').lstrip('/')}"
-                            )
+                            replaced = f.replace("\\", "/").lstrip("/")
+                            frame_urls.append(f"/frames-static/{replaced}")
                 elif isinstance(frames, list):
                     for f in frames:
-                        frame_urls.append(
-                            f"/frames-static/{f.replace('\\', '/').lstrip('/')}"
-                        )
+                        replaced = f.replace("\\", "/").lstrip("/")
+                        frame_urls.append(f"/frames-static/{replaced}")
             with status_lock:
                 status["frames"] = frame_urls
         except Exception as e:
@@ -134,7 +132,9 @@ async def get_frames():
 @app.post("/upload")
 async def upload_and_extract(video: UploadFile = File(...)):
     if not video.content_type or not video.content_type.startswith("video/"):
-        return JSONResponse({"error": "Invalid file type. Please upload a video file."}, status_code=400)
+        return JSONResponse(
+            {"error": "Invalid file type. Please upload a video file."}, status_code=400
+        )
     temp_dir = tempfile.mkdtemp()
     temp_video_path = Path(temp_dir) / f"upload_{video.filename}"
     temp_output_dir = Path(temp_dir) / "frames"
@@ -149,7 +149,9 @@ async def upload_and_extract(video: UploadFile = File(...)):
     )
     if not frames:
         shutil.rmtree(temp_dir, ignore_errors=True)
-        return JSONResponse({"error": "No I-frames found in the video."}, status_code=404)
+        return JSONResponse(
+            {"error": "No I-frames found in the video."}, status_code=404
+        )
     frame_data = []
     frame_paths = []
     if isinstance(frames, dict):
@@ -163,10 +165,12 @@ async def upload_and_extract(video: UploadFile = File(...)):
             with open(full_path, "rb") as img_file:
                 img_data = img_file.read()
                 img_base64 = base64.b64encode(img_data).decode("utf-8")
-                frame_data.append({
-                    "filename": Path(frame_path).name,
-                    "data": f"data:image/jpeg;base64,{img_base64}",
-                })
+                frame_data.append(
+                    {
+                        "filename": Path(frame_path).name,
+                        "data": f"data:image/jpeg;base64,{img_base64}",
+                    }
+                )
     shutil.rmtree(temp_dir, ignore_errors=True)
     return {
         "message": "Frames extracted successfully",
@@ -179,7 +183,9 @@ async def upload_and_extract(video: UploadFile = File(...)):
 @app.post("/upload-urls")
 async def upload_and_extract_urls(video: UploadFile = File(...)):
     if not video.content_type or not video.content_type.startswith("video/"):
-        return JSONResponse({"error": "Invalid file type. Please upload a video file."}, status_code=400)
+        return JSONResponse(
+            {"error": "Invalid file type. Please upload a video file."}, status_code=400
+        )
     temp_dir = tempfile.mkdtemp()
     temp_video_path = Path(temp_dir) / f"upload_{video.filename}"
     output_dir_name = f"upload_{Path(video.filename).stem}"
@@ -195,7 +201,9 @@ async def upload_and_extract_urls(video: UploadFile = File(...)):
     )
     if not frames:
         shutil.rmtree(temp_dir, ignore_errors=True)
-        return JSONResponse({"error": "No I-frames found in the video."}, status_code=404)
+        return JSONResponse(
+            {"error": "No I-frames found in the video."}, status_code=404
+        )
     frame_urls = []
     frame_paths = []
     if isinstance(frames, dict):
@@ -205,7 +213,8 @@ async def upload_and_extract_urls(video: UploadFile = File(...)):
         frame_paths = frames
     for frame_path in frame_paths:
         relative_path = Path(frame_path).relative_to(Path(STATIC_ROOT))
-        url = f"/frames-static/{str(relative_path).replace('\\', '/')}"
+        replaced = str(relative_path).replace("\\", "/")
+        url = f"/frames-static/{replaced}"
         frame_urls.append({"filename": Path(frame_path).name, "url": url})
     shutil.rmtree(temp_dir, ignore_errors=True)
     return {
