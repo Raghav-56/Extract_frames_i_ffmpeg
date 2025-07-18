@@ -165,17 +165,24 @@ async def upload_and_extract(video: UploadFile = File(...)):
     elif isinstance(frames, list):
         frame_paths = frames
     for frame_path in frame_paths:
-        full_path = temp_output_dir / Path(frame_path).name
-        if full_path.exists():
-            with open(full_path, "rb") as img_file:
-                img_data = img_file.read()
-                img_base64 = base64.b64encode(img_data).decode("utf-8")
-                frame_data.append(
-                    {
-                        "filename": Path(frame_path).name,
-                        "data": f"data:image/jpeg;base64,{img_base64}",
-                    }
-                )
+
+        full_path = (temp_output_dir / frame_path).resolve()
+        if not full_path.exists():
+
+            alt_path = temp_output_dir / Path(frame_path).name
+            if alt_path.exists():
+                full_path = alt_path
+            else:
+                continue
+        with open(full_path, "rb") as img_file:
+            img_data = img_file.read()
+            img_base64 = base64.b64encode(img_data).decode("utf-8")
+            frame_data.append(
+                {
+                    "filename": Path(frame_path).name,
+                    "data": f"data:image/jpeg;base64,{img_base64}",
+                }
+            )
     # Optionally, clean up the frames after sending (uncomment if you want to auto-delete)
     # shutil.rmtree(temp_output_dir, ignore_errors=True)
     return {
