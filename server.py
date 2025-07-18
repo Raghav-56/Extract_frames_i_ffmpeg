@@ -4,12 +4,14 @@ from fastapi.responses import JSONResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 
 import os
-import tempfile
-import shutil
-import base64
-from typing import Optional, List
+
+
 from dotenv import load_dotenv
 from main import extract_frames_for_web
+from services.frame_extraction_service import (
+    handle_upload_and_extract,
+    handle_upload_and_extract_urls,
+)
 import threading
 from pathlib import Path
 
@@ -135,62 +137,17 @@ async def upload_and_extract(video: UploadFile = File(...)):
         return JSONResponse(
             {"error": "Invalid file type. Please upload a video file."}, status_code=400
         )
-    output_dir_name = f"upload_{Path(video.filename).stem}"
-    temp_output_dir = Path(STATIC_ROOT) / output_dir_name
-    temp_output_dir.mkdir(parents=True, exist_ok=True)
-    temp_video_path = temp_output_dir / f"upload_{video.filename}"
-    with open(temp_video_path, "wb") as buffer:
-        content = await video.read()
-        buffer.write(content)
-    frames = extract_frames_for_web(
-        input_path=str(temp_video_path),
-        output_dir=str(temp_output_dir),
-        progress_callback=None,
+    # Use the service function
+    frame_data, video_filename, video_info = handle_upload_and_extract(
+        video, STATIC_ROOT
     )
-    # Remove the uploaded video after extraction
-    try:
-        temp_video_path.unlink(missing_ok=True)
-    except Exception:
-        pass
-    if not frames:
-        shutil.rmtree(temp_output_dir, ignore_errors=True)
+    if not frame_data:
         return JSONResponse(
             {"error": "No I-frames found in the video."}, status_code=404
         )
-    frame_data = []
-    frame_paths = []
-    if isinstance(frames, dict):
-        for video_name, frame_list in frames.items():
-            frame_paths.extend(frame_list)
-    elif isinstance(frames, list):
-        frame_paths = frames
-
-    from lib.video_filename_parser import parse_video_filename
-
-    video_info = parse_video_filename(video.filename)
-
-    for frame_path in frame_paths:
-        full_path = (temp_output_dir / frame_path).resolve()
-        if not full_path.exists():
-            alt_path = temp_output_dir / Path(frame_path).name
-            if alt_path.exists():
-                full_path = alt_path
-            else:
-                continue
-        with open(full_path, "rb") as img_file:
-            img_data = img_file.read()
-            img_base64 = base64.b64encode(img_data).decode("utf-8")
-            frame_data.append(
-                {
-                    "filename": Path(frame_path).name,
-                    "data": f"data:image/jpeg;base64,{img_base64}",
-                }
-            )
-    # Optionally, clean up the frames after sending (uncomment if you want to auto-delete)
-    # shutil.rmtree(temp_output_dir, ignore_errors=True)
     return {
         "message": "Frames extracted successfully",
-        "video_filename": video.filename,
+        "video_filename": video_filename,
         "frame_count": len(frame_data),
         "frames": frame_data,
         "video_info": video_info,
@@ -203,46 +160,16 @@ async def upload_and_extract_urls(video: UploadFile = File(...)):
         return JSONResponse(
             {"error": "Invalid file type. Please upload a video file."}, status_code=400
         )
-    temp_dir = tempfile.mkdtemp()
-    temp_video_path = Path(temp_dir) / f"upload_{video.filename}"
-    output_dir_name = f"upload_{Path(video.filename).stem}"
-    output_dir = Path(STATIC_ROOT) / output_dir_name
-    output_dir.mkdir(parents=True, exist_ok=True)
-    with open(temp_video_path, "wb") as buffer:
-        content = await video.read()
-        buffer.write(content)
-    frames = extract_frames_for_web(
-        input_path=str(temp_video_path),
-        output_dir=str(output_dir),
-        progress_callback=None,
+    frame_urls, video_filename, output_dir, video_info = handle_upload_and_extract_urls(
+        video, STATIC_ROOT
     )
-    if not frames:
-        shutil.rmtree(temp_dir, ignore_errors=True)
+    if not frame_urls:
         return JSONResponse(
             {"error": "No I-frames found in the video."}, status_code=404
         )
-    frame_urls = []
-    frame_paths = []
-    if isinstance(frames, dict):
-        for video_name, frame_list in frames.items():
-            frame_paths.extend(frame_list)
-    elif isinstance(frames, list):
-        frame_paths = frames
-
-    # Parse video metadata (use original filename, not the temp path)
-    from lib.video_filename_parser import parse_video_filename
-
-    video_info = parse_video_filename(video.filename)
-
-    for frame_path in frame_paths:
-        relative_path = Path(frame_path).relative_to(Path(STATIC_ROOT))
-        replaced = str(relative_path).replace("\\", "/")
-        url = f"/frames-static/{replaced}"
-        frame_urls.append({"filename": Path(frame_path).name, "url": url})
-    shutil.rmtree(temp_dir, ignore_errors=True)
     return {
         "message": "Frames extracted successfully",
-        "video_filename": video.filename,
+        "video_filename": video_filename,
         "frame_count": len(frame_urls),
         "frames": frame_urls,
         "output_directory": str(output_dir),
