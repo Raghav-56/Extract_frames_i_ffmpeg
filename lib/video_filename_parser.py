@@ -118,6 +118,9 @@ def parse_video_filename(filename):
         "sentence": "Unknown sentence",
     }
 
+    if filename.startswith("upload_"):
+        filename = filename[len("upload_"):]
+
     # Extract base filename without extension
     base = os.path.splitext(filename)[0]
 

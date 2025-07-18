@@ -18,17 +18,20 @@
     </form>
     <div id="progress"></div>
     <div id="error"></div>
+    <div id="info"></div>
     <div id="frames"></div>
     <script>
         const form = document.getElementById('uploadForm');
         const progress = document.getElementById('progress');
         const errorDiv = document.getElementById('error');
         const framesDiv = document.getElementById('frames');
+        const infoDiv = document.getElementById('info');
 
         form.addEventListener('submit', function(e) {
             e.preventDefault();
             progress.textContent = '';
             errorDiv.textContent = '';
+            infoDiv.innerHTML = '';
             framesDiv.innerHTML = '';
             const formData = new FormData(form);
             const xhr = new XMLHttpRequest();
@@ -46,6 +49,15 @@
                 if (xhr.status === 200) {
                     try {
                         const result = JSON.parse(xhr.responseText);
+                        if (result.video_info) {
+                            let infoHtml = '<h3>Video Metadata</h3>';
+                            infoHtml += '<table style="border-collapse:collapse;">';
+                            for (const [key, value] of Object.entries(result.video_info)) {
+                                infoHtml += `<tr><td style='padding:2px 8px; border:1px solid #ccc;'><b>${key}</b></td><td style='padding:2px 8px; border:1px solid #ccc;'>${value}</td></tr>`;
+                            }
+                            infoHtml += '</table>';
+                            infoDiv.innerHTML = infoHtml;
+                        }
                         if (result.frames && result.frames.length > 0) {
                             progress.textContent = `Extracted ${result.frame_count} frames.`;
                             result.frames.forEach(frame => {

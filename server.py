@@ -164,11 +164,14 @@ async def upload_and_extract(video: UploadFile = File(...)):
             frame_paths.extend(frame_list)
     elif isinstance(frames, list):
         frame_paths = frames
-    for frame_path in frame_paths:
 
+    from lib.video_filename_parser import parse_video_filename
+
+    video_info = parse_video_filename(video.filename)
+
+    for frame_path in frame_paths:
         full_path = (temp_output_dir / frame_path).resolve()
         if not full_path.exists():
-
             alt_path = temp_output_dir / Path(frame_path).name
             if alt_path.exists():
                 full_path = alt_path
@@ -190,6 +193,7 @@ async def upload_and_extract(video: UploadFile = File(...)):
         "video_filename": video.filename,
         "frame_count": len(frame_data),
         "frames": frame_data,
+        "video_info": video_info,
     }
 
 
@@ -224,6 +228,12 @@ async def upload_and_extract_urls(video: UploadFile = File(...)):
             frame_paths.extend(frame_list)
     elif isinstance(frames, list):
         frame_paths = frames
+
+    # Parse video metadata (use original filename, not the temp path)
+    from lib.video_filename_parser import parse_video_filename
+
+    video_info = parse_video_filename(video.filename)
+
     for frame_path in frame_paths:
         relative_path = Path(frame_path).relative_to(Path(STATIC_ROOT))
         replaced = str(relative_path).replace("\\", "/")
@@ -236,6 +246,7 @@ async def upload_and_extract_urls(video: UploadFile = File(...)):
         "frame_count": len(frame_urls),
         "frames": frame_urls,
         "output_directory": str(output_dir),
+        "video_info": video_info,
     }
 
 
