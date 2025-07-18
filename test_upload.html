@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Test Video Upload</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 2em; }
+        #frames img { max-width: 200px; margin: 5px; border: 1px solid #ccc; }
+        #progress { margin: 1em 0; }
+        #error { color: red; }
+    </style>
+</head>
+<body>
+    <h1>Upload a Video File</h1>
+    <form id="uploadForm">
+        <input type="file" name="video" accept="video/*" required>
+        <button type="submit">Upload and Extract Frames</button>
+    </form>
+    <div id="progress"></div>
+    <div id="error"></div>
+    <div id="frames"></div>
+    <script>
+        const form = document.getElementById('uploadForm');
+        const progress = document.getElementById('progress');
+        const errorDiv = document.getElementById('error');
+        const framesDiv = document.getElementById('frames');
+
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+            progress.textContent = '';
+            errorDiv.textContent = '';
+            framesDiv.innerHTML = '';
+            const formData = new FormData(form);
+            const xhr = new XMLHttpRequest();
+            xhr.open('POST', '/upload', true);
+
+            xhr.upload.onprogress = function(event) {
+                if (event.lengthComputable) {
+                    const percent = Math.round((event.loaded / event.total) * 100);
+                    progress.textContent = `Uploading: ${percent}%`;
+                }
+            };
+
+            xhr.onload = function() {
+                progress.textContent = '';
+                if (xhr.status === 200) {
+                    try {
+                        const result = JSON.parse(xhr.responseText);
+                        if (result.frames && result.frames.length > 0) {
+                            progress.textContent = `Extracted ${result.frame_count} frames.`;
+                            result.frames.forEach(frame => {
+                                const img = document.createElement('img');
+                                img.src = frame.data;
+                                img.alt = frame.filename;
+                                framesDiv.appendChild(img);
+                            });
+                        } else {
+                            framesDiv.textContent = 'No frames extracted.';
+                        }
+                    } catch (err) {
+                        errorDiv.textContent = 'Error parsing server response.';
+                    }
+                } else {
+                    try {
+                        const result = JSON.parse(xhr.responseText);
+                        errorDiv.textContent = result.error || 'Upload failed.';
+                    } catch {
+                        errorDiv.textContent = 'Upload failed.';
+                    }
+                }
+            };
+
+            xhr.onerror = function() {
+                progress.textContent = '';
+                errorDiv.textContent = 'Network error.';
+            };
+
+            xhr.send(formData);
+            progress.textContent = 'Uploading...';
+        });
+    </script>
+</body>
+</html>
